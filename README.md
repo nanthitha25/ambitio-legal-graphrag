@@ -171,6 +171,24 @@ This memorandum summarizes the compensation layout and contract terms for the In
 - Stipend Compensation: $700 per month
 - Expiry Date: December 2026
 --------------------------------------
-
 ✅ DEMONSTRATION COMPLETE: The pipeline successfully learned from operator feedback dynamically!
 ```
+
+---
+
+## 🖥️ UI Execution (Optional Component)
+
+We have built an interactive web-based dashboard using Streamlit that enables you to test the complete ingestion, extraction, drafting, and feedback mutation loop visually.
+
+To run the interactive Streamlit dashboard:
+```bash
+streamlit run app.py
+```
+
+This will launch a local server and automatically open your default browser to `http://localhost:8501`. 
+
+### Interactive Demo Flow:
+1. **Document Ingestion**: Review the messy legal text in the sidebar and click **Process & Build Graph**. You will see the extracted triples with their confidence scores populated in a clean table in Column 1.
+2. **Draft Memo**: Click **Generate Draft Memo** in Column 2. The AI will query the graph and draft a summary listing the `$500 per month` stipend.
+3. **Submit Edits**: In the editable draft text area, change the stipend to `$700 per month` and click **Submit Operator Edits**.
+4. **Learn & Update**: The learning loop compares the drafts, identifies the correction, mutates the graph (deletes the old `$500 per month` relation and adds the `$700 per month` relation), and immediately updates the table in Column 1 right in front of your eyes!
