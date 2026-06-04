@@ -89,11 +89,16 @@ with col2:
             
             if st.button("Submit Operator Edits (Learning Loop)"):
                 with st.spinner("Processing feedback & mutating graph..."):
-                    # Execute Step 4: Compare drafts, mutate graph structure
+                    # 1. Update the underlying graph data structure
                     process_operator_feedback(st.session_state.current_draft, edited_draft, st.session_state.graph_manager)
-                    st.success("Graph mutated! The old conflicting facts have been deleted.")
-                    # Update current draft state to mirror edits
-                    st.session_state.current_draft = edited_draft
+                    
+                    st.toast("Graph mutated successfully! Old facts cleared.", icon="🔄")
+                    
+                    # 2. CRITICAL FIX: Force the LLM to write a brand new draft using the updated graph facts
+                    updated_draft = generate_draft(query, st.session_state.graph_manager, st.session_state.cleaned_text)
+                    
+                    # 3. Save the newly generated text to state and force a UI re-render
+                    st.session_state.current_draft = updated_draft
                     st.rerun()
     else:
         st.info("The generation engine will become active once data is loaded into the graph.")
