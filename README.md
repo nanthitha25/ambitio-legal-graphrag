@@ -49,7 +49,7 @@ pip install -r requirements.txt
 ### 4. Run the Pipeline
 The pipeline supports two execution modes:
 - **Real LLM Mode (Requires OpenAI API Key)**:
-  Provide your OpenAI API key to execute actual calls to `gpt-4o-mini`:
+  Provide your GEMINI API key to execute actual calls to :
   ```bash
   export OPENAI_API_KEY="your-actual-api-key"
   python main.py
