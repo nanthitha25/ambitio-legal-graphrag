@@ -48,14 +48,14 @@ pip install -r requirements.txt
 
 ### 4. Run the Pipeline
 The pipeline supports two execution modes:
-- **Real LLM Mode (Requires OpenAI API Key)**:
+- **Real LLM Mode (Requires GEMINI API Key)**:
   Provide your GEMINI API key to execute actual calls to :
   ```bash
-  export OPENAI_API_KEY="your-actual-api-key"
+  export "GEMINI_API_KEY="your-actual-api-key"
   python main.py
   ```
 - **Mock LLM Simulation Mode (No Key Required)**:
-  If the `OPENAI_API_KEY` is not set, the pipeline automatically falls back to **Mock Simulation Mode**. It mimics the exact same execution paths, structured output data structures, and graph mutations. This guarantees the project runs out-of-the-box for any reviewer without any setup friction!
+  If the `GEMINI_API_KEY="your-actual-api-key` is not set, the pipeline automatically falls back to **Mock Simulation Mode**. It mimics the exact same execution paths, structured output data structures, and graph mutations. This guarantees the project runs out-of-the-box for any reviewer without any setup friction!
   ```bash
   python main.py
   ```
