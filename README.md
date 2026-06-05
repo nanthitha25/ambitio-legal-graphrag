@@ -81,6 +81,197 @@ Legal inputs are frequently messy. Our Pydantic schema in `processor.py` explici
 
 ---
 
+## 📊 System Architecture & UML Diagrams
+
+This section outlines the logical structure and processes of the Ambitio Legal GraphRAG system using Mermaid diagrams.
+
+### 1. Use Case Diagram
+Describes operator interactions and System/AI actions in the pipeline.
+
+```mermaid
+graph TD
+    subgraph Actors
+        Operator((Human Operator))
+        AI_System[AI Pipeline / LLM]
+    end
+
+    subgraph "Ambitio Legal GraphRAG System"
+        UC1(Ingest Messy Document)
+        UC2(Clean Text & Extract Triples)
+        UC3(Build Knowledge Graph)
+        UC4(Generate Grounded Draft Memo)
+        UC5(Review & Edit Draft Memo)
+        UC6(Analyze Feedback & Mutate Graph)
+    end
+
+    Operator --> UC1
+    Operator --> UC4
+    Operator --> UC5
+    Operator --> UC6
+
+    UC1 --> UC2
+    UC2 --> AI_System
+    UC2 --> UC3
+    UC3 --> UC4
+    UC5 --> UC6
+    UC6 --> AI_System
+    UC6 --> UC3
+```
+
+### 2. Entity-Relationship (ER) Diagram
+Illustrates data structures and entity associations within the knowledge base and operator feedback loop.
+
+```mermaid
+erDiagram
+    DOCUMENT {
+        string raw_text
+        string cleaned_text
+    }
+    KNOWLEDGE_TRIPLE {
+        string subject
+        string predicate
+        string object_
+        string raw_source_context
+        float confidence_score
+    }
+    KNOWLEDGE_GRAPH {
+        int total_nodes
+        int total_edges
+    }
+    DRAFT_MEMO {
+        string query
+        string content
+    }
+    CORRECTION_TRIPLE {
+        string subject
+        string predicate
+        string object_
+    }
+
+    DOCUMENT ||--o{ KNOWLEDGE_TRIPLE : contains
+    KNOWLEDGE_TRIPLE }o--|| KNOWLEDGE_GRAPH : populates
+    KNOWLEDGE_GRAPH ||--o{ DRAFT_MEMO : "provides context for"
+    DRAFT_MEMO ||--o| CORRECTION_TRIPLE : "generates from operator edits"
+    CORRECTION_TRIPLE ||--o{ KNOWLEDGE_GRAPH : "mutates/updates"
+```
+
+### 3. Sequence Diagram
+Highlights runtime workflow and API interactions from ingestion to graph mutation and verification.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operator as Human Operator
+    participant UI as Streamlit App / main.py
+    participant Proc as processor.py
+    participant GM as GraphManager (networkx)
+    participant Gen as generator.py
+    participant LLM as OpenAI GPT-4o-mini / Mock
+
+    Operator->>UI: Paste raw messy text & click "Process"
+    UI->>Proc: clean_and_extract(raw_text)
+    Proc->>LLM: Send cleaning & extraction prompt
+    LLM-->>Proc: Return clean text & structured triples
+    Proc-->>UI: Return ExtractedContractData
+    
+    loop Add Each Triple
+        UI->>GM: add_triple(subject, predicate, object)
+        note over GM: Resolves similarities & overwrites conflicts
+        GM-->>UI: Graph updated
+    end
+    
+    Operator->>UI: Input query and request draft
+    UI->>Gen: generate_draft(query, graph_manager, clean_text)
+    Gen->>GM: get_relevant_triples(query)
+    GM-->>Gen: Return matching facts
+    Gen->>LLM: Generate memo grounded in facts
+    LLM-->>Gen: Return initial draft memo text
+    Gen-->>UI: Return draft memo
+    UI-->>Operator: Display editable draft memo
+    
+    Operator->>UI: Edit stipend (e.g. $500 -> $700) & submit
+    UI->>Gen: process_operator_feedback(original, edited, graph_manager)
+    Gen->>LLM: Compare drafts & extract CorrectionTriples
+    LLM-->>Gen: Return corrections list
+    loop Add Correction
+        Gen->>GM: add_triple(subject, predicate, object, confidence=1.0)
+        note over GM: Deletes old $500 edge & inserts $700 edge
+        GM-->>Gen: Graph mutated
+    end
+    Gen-->>UI: Return feedback processing done
+    UI->>Gen: generate_draft(query, graph_manager, clean_text)
+    Gen->>GM: get_relevant_triples(query)
+    GM-->>Gen: Return updated facts
+    Gen->>LLM: Generate final draft memo
+    LLM-->>Gen: Return final draft memo text
+    Gen-->>UI: Return updated draft memo
+    UI-->>Operator: Display updated draft memo ($700 stipend)
+```
+
+### 4. Class Diagram
+Represents the system's modular class schema and data structures.
+
+```mermaid
+classDiagram
+    class KnowledgeTriple {
+        +str subject
+        +str predicate
+        +str object_
+        +str raw_source_context
+        +float confidence_score
+    }
+    class ExtractedContractData {
+        +str cleaned_text
+        +List~KnowledgeTriple~ triples
+    }
+    class CorrectionTriple {
+        +str subject
+        +str predicate
+        +str object_
+    }
+    class FeedbackCorrections {
+        +List~CorrectionTriple~ corrections
+    }
+    class GraphManager {
+        +DiGraph graph
+        +add_triple(subject, predicate, object, raw_source_context, confidence_score) void
+        +get_relevant_triples(query) List~str~
+        +visualize() void
+        -_normalize_string(text) str
+        +are_relations_similar(rel1, rel2) bool
+    }
+
+    ExtractedContractData "1" *-- "many" KnowledgeTriple : contains
+    FeedbackCorrections "1" *-- "many" CorrectionTriple : contains
+    GraphManager --> KnowledgeTriple : ingests
+    GraphManager --> CorrectionTriple : mutates with
+```
+
+### 5. Activity Diagram
+Details the logic flow from raw ingestion to grounded answers and loop closures.
+
+```mermaid
+graph TD
+    Start([Start Pipeline]) --> Ingest[Ingest raw messy legal document]
+    Ingest --> CleanExtract[Clean text and extract semantic triples using LLM/Mock]
+    CleanExtract --> BuildGraph[Build in-memory NetworkX DiGraph]
+    BuildGraph --> QueryGraph[Query graph for drafting task]
+    QueryGraph --> Retrieve[Retrieve relevant triples as grounded context]
+    Retrieve --> GenerateDraft[Generate initial draft memo grounded in retrieved context]
+    GenerateDraft --> Present[Present draft to operator for review]
+    Present --> EditDecision{Did operator edit draft?}
+    
+    EditDecision -- No --> Done([End: Draft complete & verified])
+    
+    EditDecision -- Yes --> CompareDrafts[Compare original draft with operator edited draft]
+    CompareDrafts --> ExtractCorrections[Extract correction triples using LLM/Mock]
+    ExtractCorrections --> MutateGraph[Mutate Graph: delete old conflicting edge and add new edge]
+    MutateGraph --> Regenerate[Regenerate draft using mutated graph context]
+    Regenerate --> Done
+```
+
+---
+
 ## 📊 Evaluation Framework (Before-and-After Logs)
 
 Below is the verified execution trace showing how the system successfully extracts, queries, detects operator edits, mutates the graph, and outputs the updated facts.
